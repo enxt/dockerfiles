@@ -19,10 +19,16 @@ else
 		echo "[i] MySQL root Password: $MYSQL_ROOT_PASSWORD"
 	fi
 
+	
+	REMOTE_USER=${REMOTE_USER:-""}
+	REMOTE_PASS=${REMOTE_PASS:-""}
+	REMOTE_HOST=${REMOTE_HOST:-""}
+	REMOTE_DBS=${REMOTE_DBS:-""}
+	
 	MYSQL_DATABASE=${MYSQL_DATABASE:-""}
-	MYSQL_USER=${MYSQL_USER:-""}
-	MYSQL_PASSWORD=${MYSQL_PASSWORD:-""}
-
+	MYSQL_USER=${REMOTE_USER:-${MYSQL_USER:-""}}
+	MYSQL_PASSWORD=${REMOTE_PASS:-${MYSQL_PASSWORD:-""}}
+	
 	tfile=`mktemp`
 	if [ ! -f "$tfile" ]; then
 	    return 1
@@ -54,9 +60,43 @@ EOF
 		echo "GRANT ALL ON \`$MYSQL_DATABASE\`.* to '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD';" >> $tfile
 	    fi
 	fi
+	
+	if [ "$REMOTE_HOST" != "" ] && [ "$REMOTE_DBS" != "" ]; then
+		echo "[i] Importing databases from $REMOTE_HOST"
+		if [ "$REMOTE_DBS" != "" ]; then
+			for db in $REMOTE_DBS
+			do
+				echo "[i] Transfering $db database..."
+				mysqldump -h$REMOTE_HOST -u$REMOTE_USER -p$REMOTE_PASS --databases $db | sed -e s/TokuDB/InnoDB/g >> $tfile #| mysql -u$MYSQL_USER -p$MYSQL_PASSWORD
+				echo "GRANT ALL ON \`$db\`.* to '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD';" >> $tfile
+			done
+		else
+			echo "[i] Only databases in REMOTE_DBS variable will been imported"
+		fi
+	fi
 
 	/usr/bin/mysqld --user=mysql --bootstrap --verbose=0 < $tfile
 	rm -f $tfile
 fi
+
+if [ -d /var/lib/mysql/toimport ]; then
+	echo "[i] Folder toimport found"
+	/usr/bin/mysqld --user=mysql --console &
+	sleep 10
+	ls /var/lib/mysql/toimport/*sql | while read FILE; do
+		db=`basename $FILE | sed "s/\.sql$//g"`
+		if [ ! -d "/var/lib/mysql/$db" ]; then
+			echo "[i] Creating $db database"
+			mysql -u$MYSQL_USER -p$MYSQL_PASSWORD --execute="CREATE DATABASE IF NOT EXISTS \`$db\` CHARACTER SET utf8 COLLATE utf8_general_ci;"
+			echo "[i] Importing data"
+			cat $FILE | sed -e s/TokuDB/InnoDB/g | mysql -u$MYSQL_USER -p$MYSQL_PASSWORD --force $db
+			echo "[i] $db database will be imported"
+		else
+			echo "[i] Database $db exists, passing"
+		fi
+	done
+	killall mysqld
+fi
+
 
 exec /usr/bin/mysqld --user=mysql --console
