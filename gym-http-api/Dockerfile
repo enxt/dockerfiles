@@ -56,4 +56,6 @@ EXPOSE 5000
 # xvfb wrapper
 COPY xvfb-run /usr/bin/xvfb-run
 
+RUN chmod +x /usr/bin/xvfb-run
+
 CMD xvfb-run -s "-screen 0 1400x900x24" python3 -u gym-http-api/gym_http_server.py --listen 0.0.0.0
