@@ -1,0 +1,10 @@
+{
+    "phpstan.toolPath": "/root/.composer/vendor/bin/phpstan",
+    "phpstan.memoryLimit": "-1",
+    "coc.preferences.formatOnSaveFiletypes": ["php"],
+    "phpactor.path": "/root/bin/phpactor",
+    "php-cs-fixer.toolPath": "/root/bin/php-cs-fixer",
+    "php-cs-fixer.enableFormatProvider": true,
+    "php-cs-fixer.rules": "@PSR12,@PhpCsFixer",
+    "list.source.files.excludePatterns": ["**/vendor/**", "**/node_modules/**"]
+  }
